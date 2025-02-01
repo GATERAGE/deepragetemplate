@@ -20,3 +20,10 @@ deeprage/
 ├── requirements.txt
 └── rage.py
 ```
+
+```bash
+pip install -r requirements.txt
+```
+```bash
+python rage.py --query "What are the main advantages of DeepSeek R1?" --output-format markdown
+```
