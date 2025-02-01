@@ -11,7 +11,7 @@ deeprage/
 │   └── utils.py
 ├── tests/
 │   └── __init__.py
-├── rage/
+├── knowledge/
 │   ├── markdown/
 │   ├── json/
 │   ├── index/
