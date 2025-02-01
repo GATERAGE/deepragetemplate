@@ -8,28 +8,29 @@ import streamlit as st
 import time
 from datetime import datetime
 from typing import Dict, Any, Optional
-from models import (
+from src.models import (
     GPT4Handler, 
     GroqHandler, 
     TogetherHandler, 
     OllamaHandler,
     HuggingFaceHandler
 )
-from memory import (
+from src.memory import (
     memory_manager,
     DialogEntry,
     MemoryEntry,
     store_conversation,
     get_conversation_history
 )
-from config import get_config, get_model_config
-from logger import get_logger
+from src.config import get_config, get_model_config
+from src.logger import get_logger
+from src.openmind import OpenMind
 
 # Initialize logger
 logger = get_logger('rage')
 
 class RAGE:
-    """RAGE - Retrieval Augmented Generation Environment"""
+    """RAGE - Retrieval Augmented Generative Engine"""
     
     def __init__(self):
         self.setup_session_state()
@@ -37,8 +38,9 @@ class RAGE:
         self.model_config = get_model_config()
         self.load_css()
         
-        # Initialize memory system
+        # Initialize systems
         self.memory = memory_manager
+        self.openmind = OpenMind()
     
     def setup_session_state(self):
         """Initialize session state variables"""
@@ -48,6 +50,8 @@ class RAGE:
             st.session_state.provider = None
         if 'selected_model' not in st.session_state:
             st.session_state.selected_model = None
+        if 'model_capabilities' not in st.session_state:
+            st.session_state.model_capabilities = []
         if 'cost_tracking' not in st.session_state:
             st.session_state.cost_tracking = {"total": 0.0, "session": 0.0}
         if 'model_instances' not in st.session_state:
@@ -58,6 +62,20 @@ class RAGE:
                 'openai': None,
                 'huggingface': None
             }
+    
+    def check_ollama_status(self):
+        """Check Ollama installation and available models"""
+        try:
+            if not st.session_state.model_instances['ollama']:
+                st.session_state.model_instances['ollama'] = OllamaHandler()
+            
+            if st.session_state.model_instances['ollama'].check_installation():
+                models = st.session_state.model_instances['ollama'].list_models()
+                return True, models
+            return False, []
+        except Exception as e:
+            logger.error(f"Error checking Ollama status: {e}")
+            return False, []
     
     def load_css(self):
         """Load CSS styling"""
@@ -74,6 +92,25 @@ class RAGE:
             <style>
             .cost-tracker { padding: 10px; background: #262730; border-radius: 5px; }
             .model-info { padding: 10px; background: #1E1E1E; border-radius: 5px; }
+            .capability-tag { 
+                display: inline-block; 
+                padding: 2px 8px; 
+                margin: 2px;
+                background: #3B3B3B; 
+                border-radius: 12px; 
+                font-size: 0.8em; 
+            }
+            .api-key-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px;
+                margin: 5px 0;
+            }
+            .checkmark {
+                color: #00cc00;
+                font-weight: bold;
+            }
             </style>
         """, unsafe_allow_html=True)
     
@@ -84,30 +121,65 @@ class RAGE:
                 st.info("Please select an AI Provider")
                 return None
             
-            handlers = {
-                "OpenAI": GPT4Handler,
-                "Together": TogetherHandler,
-                "Groq": GroqHandler,
-                "Ollama": OllamaHandler,
-                "HuggingFace": HuggingFaceHandler
-            }
-            
-            if provider not in handlers:
-                st.error(f"Unsupported provider: {provider}")
-                return None
-            
-            if not st.session_state.model_instances[provider.lower()]:
-                handler_class = handlers[provider]
-                if provider in ["OpenAI", "Together", "Groq"]:
-                    api_key = st.session_state.get(f"{provider.lower()}_api_key")
-                    if not api_key:
-                        st.error(f"{provider} API key required")
-                        return None
-                    st.session_state.model_instances[provider.lower()] = handler_class(api_key)
+            if provider == "Together":
+                key = self.openmind.get_api_key('together')
+                if key:
+                    if not st.session_state.model_instances['together']:
+                        st.session_state.model_instances['together'] = TogetherHandler(key)
+                    return st.session_state.model_instances['together']
                 else:
-                    st.session_state.model_instances[provider.lower()] = handler_class()
+                    st.error("Together API key not found")
+                    return None
             
-            return st.session_state.model_instances[provider.lower()]
+            elif provider == "Groq":
+                key = self.openmind.get_api_key('groq')
+                if key:
+                    if not st.session_state.model_instances['groq']:
+                        st.session_state.model_instances['groq'] = GroqHandler(key)
+                    return st.session_state.model_instances['groq']
+                else:
+                    st.error("Groq API key not found")
+                    return None
+            
+            elif provider == "OpenAI":
+                key = self.openmind.get_api_key('openai')
+                if key:
+                    if not st.session_state.model_instances['openai']:
+                        st.session_state.model_instances['openai'] = GPT4Handler(key)
+                    return st.session_state.model_instances['openai']
+                else:
+                    st.error("OpenAI API key not found")
+                    return None
+            
+            elif provider == "Ollama":
+                if not st.session_state.model_instances['ollama']:
+                    st.session_state.model_instances['ollama'] = OllamaHandler()
+                
+                if st.session_state.model_instances['ollama'].check_installation():
+                    available_models = st.session_state.model_instances['ollama'].list_models()
+                    if available_models:
+                        if not st.session_state.selected_model:
+                            st.info("Please select an Ollama model to continue")
+                            return None
+                        
+                        if st.session_state.model_instances['ollama'].select_model(st.session_state.selected_model):
+                            return st.session_state.model_instances['ollama']
+                        else:
+                            st.error(st.session_state.model_instances['ollama'].get_last_error())
+                            return None
+                    else:
+                        st.error("No Ollama models found. Please pull a model first.")
+                        return None
+                else:
+                    st.error("Ollama service is not running. Please start the Ollama service.")
+                    return None
+            
+            elif provider == "HuggingFace":
+                if not st.session_state.model_instances['huggingface']:
+                    st.session_state.model_instances['huggingface'] = HuggingFaceHandler()
+                return st.session_state.model_instances['huggingface']
+            
+            return None
             
         except Exception as e:
             logger.error(f"Error initializing model: {e}")
@@ -160,19 +232,23 @@ class RAGE:
             with st.chat_message("assistant"):
                 with st.spinner("Processing with RAG..."):
                     try:
+                        # Get relevant context
+                        context = self.memory.get_relevant_context(prompt)
+                        
                         # Generate response
-                        response = model.generate_response(prompt)
+                        response = model.generate_response(prompt, context)
                         
                         if isinstance(model, OllamaHandler) and model.get_last_error():
                             st.error(model.get_last_error())
                             return
                         
-                        # Store conversation in memory
+                        # Store conversation
                         dialog_entry = DialogEntry(
                             query=prompt,
                             response=response,
                             provider=st.session_state.provider,
-                            model=st.session_state.selected_model
+                            model=st.session_state.selected_model,
+                            context={"retrieved_context": context}
                         )
                         store_conversation(dialog_entry)
                         
@@ -198,6 +274,18 @@ class RAGE:
         with st.sidebar:
             st.header("RAGE Configuration")
             
+            # Check Ollama status
+            ollama_running, ollama_models = self.check_ollama_status()
+            if ollama_running:
+                st.markdown("""
+                    <div class="api-key-status">
+                        <span class="checkmark">●</span>
+                        <span class="text">Ollama Running</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                if ollama_models:
+                    st.caption(f"Available models: {', '.join(ollama_models)}")
+            
             # Provider selection
             previous_provider = st.session_state.provider
             st.session_state.provider = st.selectbox(
@@ -211,23 +299,59 @@ class RAGE:
             
             # Model selection
             if st.session_state.provider:
-                provider_models = self.model_config.get_provider_models(
-                    st.session_state.provider.lower()
-                )
-                if provider_models:
-                    st.session_state.selected_model = st.selectbox(
-                        f"Select {st.session_state.provider} Model",
-                        options=list(provider_models.keys()),
-                        key=f"{st.session_state.provider.lower()}_model_select"
-                    )
-                    
-                    # API key input for relevant providers
-                    if st.session_state.provider in ["OpenAI", "Together", "Groq"]:
-                        api_key = st.text_input(
-                            f"{st.session_state.provider} API Key",
-                            type="password",
-                            key=f"{st.session_state.provider.lower()}_api_key"
+                if st.session_state.provider == "Ollama":
+                    if ollama_models:
+                        st.session_state.selected_model = st.selectbox(
+                            "Select Ollama Model",
+                            options=ollama_models,
+                            key='ollama_model_select'
                         )
+                else:
+                    provider_models = self.model_config.get_provider_models(
+                        st.session_state.provider.lower()
+                    )
+                    if provider_models:
+                        st.session_state.selected_model = st.selectbox(
+                            f"Select {st.session_state.provider} Model",
+                            options=list(provider_models.keys()),
+                            key=f"{st.session_state.provider.lower()}_model_select"
+                        )
+                        
+                        # API key handling
+                        if st.session_state.provider in ["OpenAI", "Together", "Groq"]:
+                            # Check if API key exists
+                            existing_key = self.openmind.get_api_key(
+                                st.session_state.provider.lower()
+                            )
+                            
+                            # Show API key status
+                            if existing_key:
+                                st.markdown(f"""
+                                    <div class="api-key-status">
+                                        <span class="checkmark">✓</span>
+                                        <span class="text">{st.session_state.provider} API Key Stored</span>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                            
+                            # API key input
+                            api_key = st.text_input(
+                                f"{st.session_state.provider} API Key",
+                                type="password",
+                                key=f"{st.session_state.provider.lower()}_api_key"
+                            )
+                            
+                            if api_key:
+                                self.openmind.save_api_key(
+                                    st.session_state.provider.lower(), 
+                                    api_key
+                                )
+                                try:
+                                    st.rerun()
+                                except AttributeError:
+                                    try:
+                                        st.experimental_rerun()
+                                    except AttributeError:
+                                        st.empty()
             
             # Display model information
             if st.session_state.provider and st.session_state.selected_model:
@@ -252,7 +376,7 @@ class RAGE:
     def run(self):
         """Run the RAGE interface"""
         try:
-            st.title("RAGE - Retrieval Augmented Generation Environment")
+            st.title("RAGE - Retrieval Augmented Generative Engine")
             
             # Display cost tracker
             st.markdown(f"""
