@@ -35,6 +35,8 @@ typing-extensions>=4.8.0
 
 # Logging and monitoring
 loguru>=0.7.2
+
+# pixel display
 pillow
 
 # Development and testing
