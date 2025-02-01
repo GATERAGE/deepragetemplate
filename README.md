@@ -47,7 +47,7 @@ python3.11 -m venv rage
 source rage/bin/activate
 ```
 ```bash
-pip install -r requirements.txt
+pip install --no-cache-dir -r requirements.txt
 ```
 ```bash
 python3 rage.py --query "What are the main advantages of DeepSeek R1?" --output-format markdown
