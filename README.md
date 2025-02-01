@@ -21,7 +21,27 @@ deeprage/
 └── rage.py
 ```
 ```bash
-python3 -m venv rage
+requires python 3.11 ubuntu setup
+```
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+```bash
+pip install --upgrade pip setuptools
+```
+```bash
+pip --version
+```
+```bash
+pip check
+```
+
+
+sudo apt update && sudo apt install python3.11 python3.11-venv
+
+```bash
+python3.11 -m venv rage
 ```
 ```bash
 source rage/bin/activate
