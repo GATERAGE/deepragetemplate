@@ -50,5 +50,5 @@ source rage/bin/activate
 pip install -r requirements.txt
 ```
 ```bash
-python rage.py --query "What are the main advantages of DeepSeek R1?" --output-format markdown
+python3 rage.py --query "What are the main advantages of DeepSeek R1?" --output-format markdown
 ```
