@@ -1,3 +1,5 @@
+# main.py (c) 2025 RAGE
+
 from src.generator import DeepSeekRAGE
 from src.utils import setup_logging
 import argparse
