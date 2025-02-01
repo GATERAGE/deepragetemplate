@@ -20,16 +20,17 @@ deeprage/
 ├── requirements.txt
 └── rage.py
 ```
+
+tested on Ubuntu 22.04LTS with Python 3.11
+
 ```bash
-requires python 3.11 ubuntu setup
+pip install --upgrade pip setuptools
 ```
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
-```bash
-pip install --upgrade pip setuptools
-```
+
 ```bash
 pip --version
 ```
