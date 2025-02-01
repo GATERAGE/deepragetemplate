@@ -36,6 +36,10 @@ typing-extensions>=4.8.0
 # Logging and monitoring
 loguru>=0.7.2
 
+# config
+pyyaml
+pillow
+
 # Development and testing
 black>=23.12.1
 pytest>=7.4.3
