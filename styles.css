@@ -1,0 +1,261 @@
+/* styles.css */
+
+/* Main Layout and Colors */
+:root {
+    --primary-bg: #0E1117;
+    --secondary-bg: #1b1f23;
+    --accent-bg: #262730;
+    --border-color: #30363d;
+    --text-color: #ffffff;
+    --text-secondary: #888888;
+    --accent-color: #00cc00;
+    --hover-color: #2a2e37;
+    --shadow-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Chat Input Styling */
+.stChatInput {
+    position: fixed;
+    bottom: 0;
+    left: 25.625rem;
+    right: 0;
+    background-color: var(--primary-bg);
+    padding: 1rem;
+    z-index: 100;
+    box-shadow: 0 -2px 10px var(--shadow-color);
+}
+
+.stChatInput > div {
+    max-width: 800px;
+    margin: 0;
+    padding-right: 5rem;
+}
+
+.stChatInput input {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    width: 100%;
+    transition: border-color 0.3s ease;
+}
+
+.stChatInput input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+/* Main Content Area */
+.main {
+    padding-bottom: 80px;
+    margin-left: 15.625rem;
+    background-color: var(--primary-bg);
+}
+
+/* Selectbox Styling */
+.stSelectbox > div > div {
+    background-color: var(--accent-bg);
+}
+
+.stSelectbox > div {
+    color: var(--text-color);
+}
+
+div[data-baseweb="select"] > div {
+    background-color: var(--accent-bg);
+    border-color: var(--border-color);
+}
+
+div[data-baseweb="select"]:hover > div {
+    border-color: var(--accent-color);
+}
+
+/* Sidebar Elements */
+.sidebar .element-container {
+    margin-bottom: 1rem;
+}
+
+.sidebar {
+    background-color: var(--secondary-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+/* Chat Messages */
+.stChatMessage {
+    margin-left: 0;
+    margin-right: 5rem;
+    padding: 1rem;
+    border-radius: 4px;
+    background-color: var(--secondary-bg);
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.stChatMessage.user {
+    background-color: var(--accent-bg);
+}
+
+.stChatMessage.assistant {
+    background-color: var(--secondary-bg);
+}
+
+/* Model Info Panel */
+.model-info {
+    padding: 0.75rem;
+    border-radius: 4px;
+    background-color: var(--secondary-bg);
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
+}
+
+.model-info p {
+    margin: 0.5rem 0;
+    color: var(--text-color);
+}
+
+.model-info strong {
+    color: var(--accent-color);
+}
+
+/* Cost Tracker */
+.cost-tracker {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background-color: var(--accent-bg);
+    padding: 0.75rem;
+    border-radius: 4px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    min-width: 200px;
+}
+
+.cost-tracker-label {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+}
+
+.cost-tracker-value {
+    color: var(--accent-color);
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* Capability Tags */
+.capability-tag {
+    display: inline-block;
+    padding: 0.3rem 0.6rem;
+    margin: 0.2rem;
+    border-radius: 12px;
+    background-color: var(--accent-bg);
+    font-size: 0.8rem;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+}
+
+.capability-tag:hover {
+    background-color: var(--hover-color);
+}
+
+/* API Key Status */
+.api-key-status {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s ease;
+}
+
+.api-key-status:hover {
+    background-color: var(--hover-color);
+}
+
+.api-key-status .checkmark {
+    color: var(--accent-color);
+    margin-right: 0.75rem;
+    font-size: 1.2em;
+}
+
+.api-key-status .text {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+/* Additional Elements */
+.source-reference {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-left: 2px solid var(--accent-color);
+    margin-top: 0.5rem;
+}
+
+.error-message {
+    background-color: #2d1f1f;
+    border: 1px solid #5c2626;
+    color: #ff6b6b;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+.success-message {
+    background-color: #1f2d1f;
+    border: 1px solid #265c26;
+    color: #6bff6b;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--primary-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}
+
+/* Loading Spinner */
+.stSpinner > div {
+    border-color: var(--accent-color) transparent transparent transparent;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stChatInput {
+        left: 0;
+        padding: 0.5rem;
+    }
+    
+    .main {
+        margin-left: 0;
+        padding-bottom: 100px;
+    }
+    
+    .cost-tracker {
+        position: static;
+        margin: 1rem;
+    }
+    
+    .stChatMessage {
+        margin-right: 1rem;
+    }
+}
