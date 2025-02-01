@@ -1,0 +1,17 @@
+# requirements.txt specifically for RAGE (DeepSeek + Ollama) as CPU from localhost ollama
+
+# Core Dependencies
+streamlit>=1.31.0
+ollama>=0.1.6
+numpy>=1.24.0
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.2
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+markdown2>=2.4.10
+tqdm>=4.66.1
+loguru>=0.7.2
+
+# HTTP and Utils
+requests>=2.31.0
+httpx>=0.24.1
