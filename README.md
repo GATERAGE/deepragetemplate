@@ -1,5 +1,5 @@
 ```txt
-deepseek_rage/
+deeprage/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py
@@ -11,7 +11,7 @@ deepseek_rage/
 │   └── utils.py
 ├── tests/
 │   └── __init__.py
-├── knowledge/
+├── rage/
 │   ├── markdown/
 │   ├── json/
 │   ├── index/
