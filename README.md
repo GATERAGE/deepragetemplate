@@ -50,5 +50,4 @@ source rage/bin/activate
 pip install --no-cache-dir -r requirements.txt
 ```
 ```bash
-python3 rage.py --query "What are the main advantages of DeepSeek R1?" --output-format markdown
-```
+streamlit run rage.py```
