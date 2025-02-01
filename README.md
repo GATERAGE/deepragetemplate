@@ -18,5 +18,5 @@ deeprage/
 │   ├── cache/
 │   └── responses/
 ├── requirements.txt
-└── main.py
+└── rage.py
 ```
