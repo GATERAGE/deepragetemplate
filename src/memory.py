@@ -1,36 +1,39 @@
-# memory.py (c) 2025 Gregory L. Magnusson MIT license
+# src/memory.py (c) 2025 Gregory L. Magnusson MIT license
 
 import os
-from pathlib import Path
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 import hashlib
-from logger import get_logger
+from pathlib import Path
+import logging
+import faiss
+import numpy as np
+from tqdm import tqdm
+import requests
+import streamlit as st
+
+logger = logging.getLogger('rage.memory')
 
 @dataclass
 class DialogEntry:
     """Structure for dialogue entries"""
     query: str
     response: str
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-    context: Dict = field(default_factory=dict)
+    timestamp: str = None
+    context: Dict = None
     provider: str = None
     model: str = None
-    sources: List[Dict] = field(default_factory=list)
+    sources: List[Dict] = None
     
-    def to_json(self) -> Dict:
-        """Convert entry to JSON-serializable dict"""
-        return {
-            'query': self.query,
-            'response': self.response,
-            'timestamp': self.timestamp,
-            'context': self.context,
-            'provider': self.provider,
-            'model': self.model,
-            'sources': self.sources
-        }
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now().isoformat()
+        if self.context is None:
+            self.context = {}
+        if self.sources is None:
+            self.sources = []
 
 @dataclass
 class MemoryEntry:
@@ -39,29 +42,33 @@ class MemoryEntry:
     metadata: Dict[str, Any]
     embedding: Optional[List[float]] = None
     entry_id: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = None
     
     def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now().isoformat()
         if self.entry_id is None:
             self.entry_id = hashlib.md5(
                 f"{self.timestamp}{self.content}".encode()
             ).hexdigest()
-    
-    def to_json(self) -> Dict:
-        """Convert entry to JSON-serializable dict"""
-        return {
-            'content': self.content,
-            'metadata': self.metadata,
-            'embedding': self.embedding,
-            'entry_id': self.entry_id,
-            'timestamp': self.timestamp
-        }
 
 class MemoryManager:
     """Memory management system for RAGE"""
     
+    _instance = None  # Singleton instance
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(MemoryManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
-        self.logger = get_logger('memory')
+        if self._initialized:
+            return
+            
+        self._initialized = True
+        self.logger = logging.getLogger('rage.memory')
         
         # Define memory structure
         self.base_dir = Path('./memory')
@@ -69,7 +76,8 @@ class MemoryManager:
             'conversations': self.base_dir / 'conversations',
             'knowledge': self.base_dir / 'knowledge',
             'embeddings': self.base_dir / 'embeddings',
-            'cache': self.base_dir / 'cache'
+            'cache': self.base_dir / 'cache',
+            'index': self.base_dir / 'index'
         }
         
         # Initialize system
@@ -78,6 +86,11 @@ class MemoryManager:
         # Create session file
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._create_session_file()
+        
+        # Initialize FAISS index
+        self.index = None
+        self.documents = []
+        self._load_existing_index()
 
     def _initialize_memory_system(self):
         """Initialize memory system and create directories"""
@@ -122,16 +135,85 @@ class MemoryManager:
             self.logger.error(f"Failed to read JSON file {filepath}: {e}")
             return None
 
-    def store_conversation(self, entry: DialogEntry) -> bool:
-        """Store conversation entry as JSON"""
+    def _load_existing_index(self):
+        """Load existing index and documents if available"""
         try:
-            # Generate unique ID for the entry
+            index_path = self.memory_structure['index'] / "faiss_index.bin"
+            docs_path = self.memory_structure['knowledge'] / "documents.json"
+            
+            if index_path.exists() and docs_path.exists():
+                self.index = faiss.read_index(str(index_path))
+                docs_data = self._read_json(docs_path)
+                if docs_data:
+                    self.documents = [MemoryEntry(**doc) for doc in docs_data]
+                self.logger.info(f"Loaded {len(self.documents)} documents from existing index")
+        except Exception as e:
+            self.logger.error(f"Error loading existing index: {e}")
+            self.index = None
+            self.documents = []
+
+    def get_relevant_context(self, query: str, k: int = 3) -> str:
+        """Get relevant context for query"""
+        try:
+            if not self.index or not self.documents:
+                return ""
+            
+            # Get query embedding from Ollama
+            embedding = self.get_embedding(query)
+            if embedding is None:
+                return ""
+            
+            # Search for similar documents
+            D, I = self.index.search(np.array([embedding]), k)
+            
+            # Get relevant documents
+            results = [self.documents[i] for i in I[0] if i < len(self.documents)]
+            
+            # Combine content from relevant documents
+            context = "\n\n".join([
+                f"Source {i+1}:\n{doc.content}"
+                for i, doc in enumerate(results)
+            ])
+            
+            self.logger.info(f"Retrieved context from {len(results)} documents")
+            return context
+            
+        except Exception as e:
+            self.logger.error(f"Error getting relevant context: {e}")
+            return ""
+
+    def get_embedding(self, text: str) -> Optional[np.ndarray]:
+        """Get embedding using Ollama"""
+        try:
+            response = requests.post(
+                "http://localhost:11434/api/embeddings",
+                json={
+                    "model": "nomic-embed-text",
+                    "prompt": text
+                }
+            )
+            
+            if response.status_code == 200:
+                embedding = response.json()['embedding']
+                return np.array(embedding, dtype=np.float32)
+            else:
+                self.logger.error(f"Error getting embedding: {response.text}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error generating embedding: {e}")
+            return None
+
+    def store_conversation(self, entry: DialogEntry) -> bool:
+        """Store conversation entry"""
+        try:
+            # Generate unique ID
             entry_id = hashlib.md5(
                 f"{entry.timestamp}{entry.query}".encode()
             ).hexdigest()
             
             # Prepare entry data
-            entry_data = entry.to_json()
+            entry_data = asdict(entry)
             entry_data.update({
                 'entry_id': entry_id,
                 'session_id': self.session_id
@@ -156,39 +238,47 @@ class MemoryManager:
             self.logger.error(f"Failed to store conversation: {e}")
             return False
 
-    def store_knowledge(self, entry: MemoryEntry) -> bool:
-        """Store knowledge entry as JSON"""
+    def store_memory(self, entry: MemoryEntry) -> bool:
+        """Store memory entry with embedding"""
         try:
-            # Save knowledge entry
-            knowledge_file = self.memory_structure['knowledge'] / f"knowledge_{entry.entry_id}.json"
-            knowledge_data = entry.to_json()
+            # Get embedding if not provided
+            if entry.embedding is None:
+                embedding = self.get_embedding(entry.content)
+                if embedding is not None:
+                    entry.embedding = embedding.tolist()
             
-            # Store embedding separately if present
+            # Save memory entry
+            memory_file = self.memory_structure['knowledge'] / f"memory_{entry.entry_id}.json"
+            memory_data = asdict(entry)
+            
             if entry.embedding is not None:
-                embedding_file = self.memory_structure['embeddings'] / f"embedding_{entry.entry_id}.json"
-                embedding_data = {
-                    'entry_id': entry.entry_id,
-                    'embedding': entry.embedding
-                }
-                self._write_json(embedding_file, embedding_data)
-                knowledge_data['has_embedding'] = True
+                # Update FAISS index
+                if self.index is None:
+                    dim = len(entry.embedding)
+                    self.index = faiss.IndexFlatL2(dim)
+                
+                self.index.add(np.array([entry.embedding]))
+                self.documents.append(entry)
+                
+                # Save updated index
+                index_path = self.memory_structure['index'] / "faiss_index.bin"
+                faiss.write_index(self.index, str(index_path))
+                
+                # Save documents data
+                docs_path = self.memory_structure['knowledge'] / "documents.json"
+                self._write_json(docs_path, [asdict(doc) for doc in self.documents])
             
-            if self._write_json(knowledge_file, knowledge_data):
-                self.logger.info(f"Stored knowledge entry: {entry.entry_id}")
-                return True
-            
-            return False
+            return self._write_json(memory_file, memory_data)
             
         except Exception as e:
-            self.logger.error(f"Failed to store knowledge: {e}")
+            self.logger.error(f"Failed to store memory: {e}")
             return False
 
     def get_conversation_history(self, 
                                session_id: Optional[str] = None,
                                limit: int = 100) -> List[Dict]:
-        """Retrieve conversation history from JSON files"""
+        """Get conversation history"""
         try:
-            conversations = []
             session_id = session_id or self.session_id
             
             # Get session file
@@ -196,27 +286,30 @@ class MemoryManager:
             session_data = self._read_json(session_file)
             
             if session_data and 'entries' in session_data:
+                conversations = []
                 for entry_id in session_data['entries'][-limit:]:
                     conv_file = self.memory_structure['conversations'] / f"conv_{entry_id}.json"
                     if conv_data := self._read_json(conv_file):
                         conversations.append(conv_data)
+                
+                return conversations
             
-            return conversations
+            return []
             
         except Exception as e:
-            self.logger.error(f"Failed to retrieve conversation history: {e}")
+            self.logger.error(f"Error retrieving conversation history: {e}")
             return []
 
     def clear_cache(self) -> bool:
         """Clear cache directory"""
         try:
             cache_dir = self.memory_structure['cache']
-            for file in cache_dir.glob("*.json"):
+            for file in cache_dir.glob("*"):
                 file.unlink()
             self.logger.info("Cache cleared successfully")
             return True
         except Exception as e:
-            self.logger.error(f"Failed to clear cache: {e}")
+            self.logger.error(f"Error clearing cache: {e}")
             return False
 
 # Global instance
@@ -227,9 +320,9 @@ def store_conversation(entry: DialogEntry) -> bool:
     """Store conversation entry"""
     return memory_manager.store_conversation(entry)
 
-def store_knowledge(entry: MemoryEntry) -> bool:
-    """Store knowledge entry"""
-    return memory_manager.store_knowledge(entry)
+def store_memory(entry: MemoryEntry) -> bool:
+    """Store memory entry"""
+    return memory_manager.store_memory(entry)
 
 def get_conversation_history(
     session_id: Optional[str] = None,
@@ -241,26 +334,3 @@ def get_conversation_history(
 def clear_cache() -> bool:
     """Clear cache"""
     return memory_manager.clear_cache()
-
-# Example usage
-if __name__ == "__main__":
-    # Test conversation storage
-    dialog = DialogEntry(
-        query="What is RAGE?",
-        response="RAGE is a Retrieval Augmented Generation Environment...",
-        provider="ollama",
-        model="deepseek-r1:1.5b"
-    )
-    store_conversation(dialog)
-    
-    # Test knowledge storage
-    knowledge = MemoryEntry(
-        content="RAGE system documentation...",
-        metadata={"type": "documentation", "version": "1.0"},
-        embedding=[0.1, 0.2, 0.3]
-    )
-    store_knowledge(knowledge)
-    
-    # Test retrieval
-    history = get_conversation_history(limit=5)
-    print(f"Retrieved {len(history)} conversations")

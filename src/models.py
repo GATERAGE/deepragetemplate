@@ -1,11 +1,12 @@
-# models.py (c) 2025 RAGE
+# src/models.py (c) 2025 Gregory L. Magnusson MIT license
+
 from typing import Optional, Dict, Any
 import requests
 import logging
+import subprocess
 from pathlib import Path
-import torch
-from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+import json
+from datetime import datetime
 
 logger = logging.getLogger('rage.models')
 
@@ -28,16 +29,47 @@ class OllamaHandler(BaseHandler):
         self.base_url = base_url
         self.model = None
     
+    def check_installation(self) -> bool:
+        """Check if Ollama is installed and running"""
+        try:
+            response = requests.get(f"{self.base_url}/api/tags")
+            return response.status_code == 200
+        except Exception as e:
+            self.error = str(e)
+            logger.error(f"Ollama installation check failed: {e}")
+            return False
+    
+    def list_models(self) -> list:
+        """List available Ollama models"""
+        try:
+            response = requests.get(f"{self.base_url}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get('models', [])
+                return [model['name'] for model in models]
+            return []
+        except Exception as e:
+            self.error = str(e)
+            logger.error(f"Error listing Ollama models: {e}")
+            return []
+    
     def select_model(self, model_name: str) -> bool:
         """Select Ollama model"""
         try:
-            response = requests.post(
-                f"{self.base_url}/api/pull",
-                json={"name": model_name}
-            )
-            response.raise_for_status()
+            # Check if model exists
+            models = self.list_models()
+            if model_name not in models:
+                # Try to pull the model
+                response = requests.post(
+                    f"{self.base_url}/api/pull",
+                    json={"name": model_name}
+                )
+                if response.status_code != 200:
+                    self.error = f"Failed to pull model {model_name}"
+                    return False
+            
             self.model = model_name
             return True
+            
         except Exception as e:
             self.error = str(e)
             logger.error(f"Error selecting model: {e}")
@@ -50,7 +82,6 @@ class OllamaHandler(BaseHandler):
             return "Error: No model selected"
         
         try:
-            # Combine context and prompt if context is provided
             full_prompt = f"""
             Context: {context}
             
@@ -63,55 +94,16 @@ class OllamaHandler(BaseHandler):
                 json={
                     "model": self.model,
                     "prompt": full_prompt,
+                    "stream": False,
                     "temperature": 0.7
                 }
             )
-            response.raise_for_status()
-            return response.json()["response"]
             
-        except Exception as e:
-            self.error = str(e)
-            logger.error(f"Error generating response: {e}")
-            return f"Error: {str(e)}"
-
-class HuggingFaceHandler(BaseHandler):
-    """Handler for HuggingFace models"""
-    
-    def __init__(self, model_name: str = "deepseek/deepseek-llm-7b-chat"):
-        super().__init__()
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                device_map="auto",
-                torch_dtype=torch.float16
-            )
-            self.generator = pipeline(
-                "text-generation",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                device_map="auto"
-            )
-        except Exception as e:
-            self.error = str(e)
-            logger.error(f"Error initializing HuggingFace model: {e}")
-    
-    def generate_response(self, prompt: str, context: Optional[str] = None) -> str:
-        try:
-            full_prompt = f"""
-            Context: {context}
-            
-            Question: {prompt}
-            
-            Answer:""" if context else prompt
-            
-            outputs = self.generator(
-                full_prompt,
-                max_length=500,
-                temperature=0.7,
-                num_return_sequences=1
-            )
-            return outputs[0]["generated_text"]
+            if response.status_code == 200:
+                return response.json()["response"]
+            else:
+                self.error = f"API Error: {response.text}"
+                return f"Error: {response.text}"
             
         except Exception as e:
             self.error = str(e)
@@ -147,8 +139,10 @@ class GPT4Handler(BaseHandler):
             
             response = self.client.chat.completions.create(
                 model="gpt-4",
-                messages=messages
+                messages=messages,
+                temperature=0.7
             )
+            
             return response.choices[0].message.content
             
         except Exception as e:
@@ -184,8 +178,10 @@ class GroqHandler(BaseHandler):
             
             chat_completion = self.client.chat.completions.create(
                 messages=messages,
-                model="mixtral-8x7b-32768"
+                model="mixtral-8x7b-32768",
+                temperature=0.7
             )
+            
             return chat_completion.choices[0].message.content
             
         except Exception as e:
@@ -229,6 +225,7 @@ class TogetherHandler(BaseHandler):
                     "max_tokens": 500
                 }
             )
+            
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
             
@@ -236,3 +233,13 @@ class TogetherHandler(BaseHandler):
             self.error = str(e)
             logger.error(f"Error generating response: {e}")
             return f"Error: {str(e)}"
+
+class HuggingFaceHandler(BaseHandler):
+    """Handler for HuggingFace models"""
+    
+    def __init__(self):
+        super().__init__()
+        self.error = "HuggingFace handler not implemented"
+    
+    def generate_response(self, prompt: str, context: Optional[str] = None) -> str:
+        return "HuggingFace handler not implemented"
