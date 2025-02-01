@@ -20,7 +20,12 @@ deeprage/
 ├── requirements.txt
 └── rage.py
 ```
-
+```bash
+python3 -m venv rage
+```
+```bash
+source rage/bin/activate
+```
 ```bash
 pip install -r requirements.txt
 ```
