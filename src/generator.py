@@ -5,18 +5,50 @@ from datetime import datetime
 from pathlib import Path
 import json
 import yaml
-from ollama import Ollama
+import requests
 from .retriever import EnhancedRetriever
+
+class OllamaClient:
+    """Ollama API client"""
+    
+    def __init__(self, model: str, base_url: str = "http://localhost:11434"):
+        self.model = model
+        self.base_url = base_url
+        self.error = None
+    
+    def generate(self, 
+                prompt: str,
+                temperature: float = 0.7,
+                max_tokens: int = 500) -> str:
+        """Generate response using Ollama API"""
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
+                }
+            )
+            response.raise_for_status()
+            return response.json()["response"]
+        except Exception as e:
+            self.error = str(e)
+            return f"Error: {str(e)}"
+    
+    def get_last_error(self) -> Optional[str]:
+        return self.error
 
 class DeepSeekRAGE:
     """Main RAG system"""
     
     def __init__(self, 
-                 model_name: str = "deepseek-r1:1.5b",
+                 model_name: str = "deepseek-coder:6.7b",
                  temperature: float = 0.7,
                  max_tokens: int = 500,
                  knowledge_dir: str = "./knowledge"):
-        self.llm = Ollama(model=model_name)
+        self.llm = OllamaClient(model=model_name)
         self.retriever = EnhancedRetriever(knowledge_dir=knowledge_dir)
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -47,7 +79,7 @@ class DeepSeekRAGE:
         """
         
         response = self.llm.generate(
-            prompt,
+            prompt=prompt,
             temperature=self.temperature,
             max_tokens=self.max_tokens
         )
