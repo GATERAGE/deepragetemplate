@@ -230,7 +230,7 @@ class RAGE:
                 st.markdown(prompt)
             
             with st.chat_message("assistant"):
-                with st.spinner("Processing with RAG..."):
+                with st.spinner("Processing with RAGE..."):
                     try:
                         # Get relevant context
                         context = self.memory.get_relevant_context(prompt)
