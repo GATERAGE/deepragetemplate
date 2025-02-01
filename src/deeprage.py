@@ -1,5 +1,5 @@
 # deeprage.py (c) 2025 RAGE
-# document embeddings specific to DeekSeek RAGE
+# document embeddings specific to DeekSeek RAGE as standalone local RAGE example file
 from typing import List, Dict, Optional, Union
 import numpy as np
 from sentence_transformers import SentenceTransformer
