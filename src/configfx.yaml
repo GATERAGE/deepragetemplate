@@ -1,6 +1,6 @@
 # UI Configuration for RAGE
 branding:
-  title: "RAGE - Retrieval Augmented Generation Environment"
+  title: "RAGE - Retrieval Augmented Generative Engine"
   favicon: "assets/favicon.ico"
   logo: "assets/rage_logo.png"
   user_icon: "assets/user_icon.png"
@@ -9,7 +9,7 @@ branding:
 prompts:
   system_prompt_file: "prompts/system_prompt.txt"
   user_prompt_template: "prompts/user_prompt.txt"
-  rag_prompt_template: "prompts/rag_prompt.txt"
+  rage_prompt_template: "prompts/rage_prompt.txt"
 
 styles:
   primary_color: "#00cc00"
