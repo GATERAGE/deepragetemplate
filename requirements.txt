@@ -1,8 +1,42 @@
-faiss-cpu>=1.7.4
-huggingface-hub>=0.19.0
-markdown2>=2.4.10
-python-frontmatter>=1.0.0
+# requirements.txt for RAGE project (c) 2025 RAGE
+
+# Core dependencies
+streamlit>=1.29.0
+python-dotenv>=1.0.0
 pyyaml>=6.0.1
-tqdm>=4.66.1
-ollama>=0.1.0
+
+# Model providers
+openai>=1.0.0
+groq>=0.3.0
+together>=0.2.0
+requests>=2.31.0
+
+# Vector operations and embeddings
+numpy>=1.24.0
+faiss-cpu>=1.7.4
 sentence-transformers>=2.2.2
+
+# Machine learning and transformers
+torch>=2.0.0
+transformers>=4.36.0
+accelerate>=0.24.0
+huggingface-hub>=0.19.0
+
+# Data handling
+pandas>=2.0.0
+python-frontmatter>=1.0.0
+markdown2>=2.4.10
+
+# Utilities
+tqdm>=4.66.1
+dataclasses-json>=0.6.1
+tenacity>=8.2.3
+typing-extensions>=4.8.0
+
+# Logging and monitoring
+loguru>=0.7.2
+
+# Development and testing
+black>=23.12.1
+pytest>=7.4.3
+pytest-cov>=4.1.0
