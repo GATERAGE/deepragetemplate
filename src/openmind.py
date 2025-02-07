@@ -33,10 +33,10 @@ class OpenMind:
         # Define base paths
         self.base_path = Path(__file__).parent.parent
         
-        # System resources paths
+        # System resources paths    FIX ME
         self.system_resources = {
             'prompt': str(self.base_path / 'prompt.txt'),
-            'system_prompt': str(self.base_path / 'prompt.txt')
+            'system_prompt': str(self.base_path / 'system_prompt.txt')
         }
         
         # Memory structure
