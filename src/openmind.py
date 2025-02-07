@@ -266,7 +266,7 @@ class OpenMind:
 
     def get_system_prompt(self) -> Optional[str]:
         """Get system prompt"""
-        return self._load_resource('prompt')
+        return self._load_resource('/prompt/prompt.txt')
 
     def _load_resource(self, resource_name: str) -> Optional[str]:
         """Load a system resource with caching"""
